@@ -1,5 +1,5 @@
 <template>
-  <div class="news-detail-page">
+  <div class="news-detail-page" v-if="newsDetail">
     <!-- 文章头部 -->
     <header class="article-hero">
       <div class="hero-content">
@@ -9,6 +9,9 @@
           <span><el-icon><User /></el-icon> {{ newsDetail.author }}</span>
           <span><el-icon><Calendar /></el-icon> {{ formatDate(newsDetail.publishTime) }}</span>
           <span><el-icon><View /></el-icon> {{ newsDetail.viewCount }} 阅读</span>
+          <span v-if="activeShare" class="meta-shared">
+            <el-icon><Share /></el-icon> 只读分享中
+          </span>
         </div>
       </div>
     </header>
@@ -16,7 +19,7 @@
     <div class="detail-container">
       <!-- 返回按钮 -->
       <div class="back-nav">
-        <el-button text @click="router.back()">
+        <el-button text @click="router.push('/news')">
           <el-icon><ArrowLeft /></el-icon> 返回列表
         </el-button>
       </div>
@@ -30,29 +33,7 @@
 
           <div class="article-body">
             <p class="lead">{{ newsDetail.summary }}</p>
-            <p>
-              这是一篇关于{{ newsDetail.category }}的详细报道。在当今快速发展的时代，
-              我们需要不断学习和适应新的变化。本文将从多个角度深入分析相关话题，
-              为读者提供有价值的参考信息。
-            </p>
-            <h2>背景介绍</h2>
-            <p>
-              随着技术的不断进步，行业正在经历前所未有的变革。企业需要积极拥抱变化，
-              才能在激烈的市场竞争中保持领先地位。我们公司一直致力于技术创新，
-              为客户提供最优质的产品和服务。
-            </p>
-            <h2>核心观点</h2>
-            <p>
-              本次事件的核心在于创新与实践的结合。只有将理论与实际相结合，
-              才能真正实现价值创造。我们相信，通过持续的努力和投入，
-              一定能够取得更大的成就。
-            </p>
-            <h2>未来展望</h2>
-            <p>
-              展望未来，我们充满信心。在全体员工的共同努力下，
-              公司将继续保持高速发展，为客户创造更多价值，
-              为社会做出更大贡献。
-            </p>
+            <ArticleContent :content="newsDetail.content" />
           </div>
 
           <footer class="article-footer">
@@ -63,9 +44,14 @@
               </el-tag>
             </div>
             <div class="article-share">
-              <span>分享：</span>
-              <a @click="handleNotImplemented"><el-icon :size="18"><Share /></el-icon></a>
-              <a @click="handleNotImplemented"><el-icon :size="18"><ChatDotRound /></el-icon></a>
+              <el-button type="primary" round size="small" @click="openShareDialog">
+                <el-icon><Share /></el-icon>
+                {{ activeShare ? '管理只读分享' : '只读分享' }}
+              </el-button>
+              <el-button round size="small" @click="handleCopyLink">
+                <el-icon><Link /></el-icon>
+                复制原文链接
+              </el-button>
             </div>
           </footer>
         </article>
@@ -75,9 +61,9 @@
           <div class="sidebar-card">
             <h3>相关推荐</h3>
             <div class="related-list">
-              <div 
-                v-for="item in relatedNews" 
-                :key="item.id" 
+              <div
+                v-for="item in relatedNews"
+                :key="item.id"
                 class="related-item"
                 @click="router.push(`/news/${item.id}`)"
               >
@@ -92,77 +78,101 @@
         </aside>
       </div>
     </div>
+
+    <!-- 只读分享设置弹窗 -->
+    <ShareDialog v-model="shareDialogVisible" :news="newsDetail" />
+  </div>
+
+  <!-- 原文不存在 -->
+  <div v-else class="detail-missing">
+    <div class="missing-card">
+      <div class="missing-icon">
+        <el-icon :size="40"><Document /></el-icon>
+      </div>
+      <h1>新闻不存在或已下线</h1>
+      <p>抱歉，您访问的新闻原文暂时无法查看。</p>
+      <div class="missing-actions">
+        <el-button type="primary" round @click="router.push('/news')">返回新闻动态</el-button>
+        <el-button round @click="router.push('/')">返回首页</el-button>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import type { NewsItem } from '@/types'
+import { newsData, getNewsById } from '@/api/newsData'
+import { useShareStore } from '@/stores/share'
+import ArticleContent from '@/components/common/ArticleContent.vue'
+import ShareDialog from '@/components/common/ShareDialog.vue'
 
 const router = useRouter()
 const route = useRoute()
+const shareStore = useShareStore()
 
-const handleNotImplemented = () => {
-  ElMessage.info('功能开发中，敬请期待')
-}
+const shareDialogVisible = ref(false)
 
-const newsDetail = ref<NewsItem>({
-  id: 1,
-  title: '公司荣获2024年度最佳创新企业奖',
-  summary: '在刚刚结束的行业峰会上，我公司凭借卓越的创新能力和优质的产品服务，荣获年度最佳创新企业奖。这是对我们团队辛勤付出的最好肯定，也是对未来发展的巨大鼓励。',
-  content: '',
-  coverImage: 'https://images.unsplash.com/photo-1551434678-e076c223a692?w=800&h=400&fit=crop',
-  category: '公司新闻',
-  author: '管理员',
-  viewCount: 1256,
-  publishTime: '2024-03-15',
-  createTime: '2024-03-15',
-  updateTime: '2024-03-15'
+const newsDetail = computed<NewsItem | null>(() => {
+  const id = Number(route.params.id)
+  return Number.isFinite(id) ? getNewsById(id) ?? null : null
 })
 
-const relatedNews = ref<NewsItem[]>([
-  {
-    id: 2,
-    title: '新产品发布会圆满成功',
-    summary: '',
-    content: '',
-    coverImage: 'https://images.unsplash.com/photo-1519389950473-47ba0277781c?w=200&h=150&fit=crop',
-    category: '产品动态',
-    author: '管理员',
-    viewCount: 892,
-    publishTime: '2024-03-10',
-    createTime: '2024-03-10',
-    updateTime: '2024-03-10'
-  },
-  {
-    id: 3,
-    title: '行业发展趋势分析报告发布',
-    summary: '',
-    content: '',
-    coverImage: 'https://images.unsplash.com/photo-1504868584819-f8e8b4b6d7e3?w=200&h=150&fit=crop',
-    category: '行业资讯',
-    author: '管理员',
-    viewCount: 654,
-    publishTime: '2024-03-05',
-    createTime: '2024-03-05',
-    updateTime: '2024-03-05'
-  },
-  {
-    id: 4,
-    title: 'Vue 3 组合式 API 最佳实践',
-    summary: '',
-    content: '',
-    coverImage: 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=200&h=150&fit=crop',
-    category: '技术分享',
-    author: '技术团队',
-    viewCount: 2341,
-    publishTime: '2024-03-01',
-    createTime: '2024-03-01',
-    updateTime: '2024-03-01'
+const activeShare = computed(() => {
+  if (!newsDetail.value) return null
+  const share = shareStore.getShareByNewsId(newsDetail.value.id)
+  return share && shareStore.isActive(share) ? share : null
+})
+
+const openShareDialog = () => {
+  shareDialogVisible.value = true
+}
+
+// 相关推荐：优先同分类，排除当前文章，不足时用其他文章补齐（保留原有推荐能力）
+const relatedNews = computed<NewsItem[]>(() => {
+  if (!newsDetail.value) return []
+  const current = newsDetail.value
+  const sameCategory = newsData.filter(
+    (item) => item.id !== current.id && item.category === current.category
+  )
+  const others = newsData.filter(
+    (item) => item.id !== current.id && item.category !== current.category
+  )
+  return [...sameCategory, ...others].slice(0, 3)
+})
+
+const copyText = async (text: string) => {
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text)
+      return true
+    }
+  } catch {
+    // 走兜底
   }
-])
+  try {
+    const textarea = document.createElement('textarea')
+    textarea.value = text
+    textarea.style.position = 'fixed'
+    textarea.style.opacity = '0'
+    document.body.appendChild(textarea)
+    textarea.select()
+    const ok = document.execCommand('copy')
+    document.body.removeChild(textarea)
+    return ok
+  } catch {
+    return false
+  }
+}
+
+const handleCopyLink = async () => {
+  if (!newsDetail.value) return
+  const url = `${window.location.origin}/news/${newsDetail.value.id}`
+  const ok = await copyText(url)
+  ElMessage[ok ? 'success' : 'warning'](ok ? '原文链接已复制' : '复制失败，请手动复制')
+}
 
 const formatDate = (dateStr: string) => {
   return new Date(dateStr).toLocaleDateString('zh-CN', {
@@ -172,9 +182,11 @@ const formatDate = (dateStr: string) => {
   })
 }
 
-onMounted(() => {
-  console.log('News ID:', route.params.id)
-})
+// 路由参数变化时回到顶部（同组件复用时）
+watch(
+  () => route.params.id,
+  () => window.scrollTo({ top: 0 })
+)
 </script>
 
 <style lang="scss" scoped>
@@ -216,14 +228,19 @@ onMounted(() => {
   .article-meta {
     display: flex;
     justify-content: center;
+    flex-wrap: wrap;
     gap: $spacing-lg;
     font-size: $font-size-sm;
     color: rgba(255, 255, 255, 0.7);
-    
+
     span {
       display: flex;
       align-items: center;
       gap: 4px;
+    }
+
+    .meta-shared {
+      color: $success-color;
     }
   }
 }
@@ -328,24 +345,54 @@ onMounted(() => {
     gap: $spacing-sm;
     font-size: $font-size-sm;
     color: $text-color-secondary;
-    
-    a {
-      width: 32px;
-      height: 32px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: white;
-      border-radius: $border-radius-md;
-      color: $text-color-secondary;
-      cursor: pointer;
-      transition: all $transition-fast;
-      
-      &:hover {
-        background: $primary-color;
-        color: white;
-      }
-    }
+  }
+}
+
+// ==================== 原文缺失 ====================
+.detail-missing {
+  min-height: calc(100vh - #{$header-height});
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: $spacing-xl $spacing-lg;
+}
+
+.missing-card {
+  max-width: 480px;
+  text-align: center;
+  background: white;
+  border-radius: $border-radius-xl;
+  padding: $spacing-xxl $spacing-xl;
+  box-shadow: $shadow-lg;
+
+  .missing-icon {
+    width: 80px;
+    height: 80px;
+    margin: 0 auto $spacing-lg;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba($primary-color, 0.1);
+    color: $primary-color;
+  }
+
+  h1 {
+    font-size: $font-size-xxl;
+    margin-bottom: $spacing-sm;
+  }
+
+  p {
+    font-size: $font-size-md;
+    color: $text-color-secondary;
+    margin-bottom: $spacing-xl;
+  }
+
+  .missing-actions {
+    display: flex;
+    justify-content: center;
+    gap: $spacing-md;
+    flex-wrap: wrap;
   }
 }
 

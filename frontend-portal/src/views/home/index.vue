@@ -173,14 +173,18 @@
       </div>
       
       <div class="news-grid">
-        <div 
-          v-for="news in latestNews" 
-          :key="news.id" 
+        <div
+          v-for="news in latestNews"
+          :key="news.id"
           class="news-card"
           @click="router.push(`/news/${news.id}`)"
         >
           <div class="news-image">
             <img :src="news.coverImage" :alt="news.title" />
+            <span v-if="shareStore.isNewsShared(news.id)" class="news-share-badge">
+              <el-icon><Share /></el-icon>
+              {{ formatRemaining(shareStore.getRemaining(news.id)) }}
+            </span>
           </div>
           <div class="news-content">
             <div class="news-meta">
@@ -215,8 +219,11 @@ import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import type { NewsItem, ProductItem } from '@/types'
+import { useShareStore } from '@/stores/share'
+import { formatRemaining } from '@/utils/share'
 
 const router = useRouter()
+const shareStore = useShareStore()
 
 const handleNotImplemented = () => {
   ElMessage.info('功能开发中，敬请期待')
@@ -841,14 +848,31 @@ const formatDate = (dateStr: string) => {
   }
   
   .news-image {
+    position: relative;
     height: 200px;
     overflow: hidden;
-    
+
     img {
       width: 100%;
       height: 100%;
       object-fit: cover;
       transition: transform $transition-slow;
+    }
+
+    .news-share-badge {
+      position: absolute;
+      top: $spacing-sm;
+      left: $spacing-sm;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px $spacing-sm;
+      font-size: $font-size-xs;
+      font-weight: 500;
+      color: white;
+      background: rgba(16, 185, 129, 0.9);
+      border-radius: $border-radius-full;
+      backdrop-filter: blur(4px);
     }
   }
   

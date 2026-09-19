@@ -32,6 +32,33 @@ export interface NewsItem {
   updateTime: string
 }
 
+// ==================== 新闻只读分享 ====================
+// 访问范围：team 仅本团队 / anyone 任何人可见
+export type ShareScope = 'team' | 'anyone'
+
+export interface NewsShare {
+  token: string
+  newsId: number
+  scope: ShareScope
+  // 分享创建时间（毫秒时间戳）
+  createdAt: number
+  // 分享过期时间（毫秒时间戳）
+  expiresAt: number
+  // 有效期时长（毫秒），用于展示
+  duration: number
+}
+
+// 分享链接的访问解析结果
+export type ShareAccessStatus = 'valid' | 'expired' | 'forbidden' | 'invalid'
+
+export interface ShareAccess {
+  status: ShareAccessStatus
+  share: NewsShare | null
+  news: NewsItem | null
+  // 剩余有效期（毫秒），仅有效状态下 > 0
+  remaining: number
+}
+
 // ==================== 产品相关 ====================
 export interface ProductItem {
   id: number

@@ -44,28 +44,51 @@
             <img :src="featuredNews.coverImage" :alt="featuredNews.title" />
           </div>
           <div class="featured-content">
-            <span class="featured-badge">精选</span>
-            <span class="featured-category">{{ featuredNews.category }}</span>
+            <div class="featured-tags">
+              <span class="featured-badge">精选</span>
+              <span class="featured-category">{{ featuredNews.category }}</span>
+              <ShareStatusPill :news-id="featuredNews.id" @share="openShareDialog(featuredNews)" />
+            </div>
             <h2>{{ featuredNews.title }}</h2>
             <p>{{ featuredNews.summary }}</p>
             <div class="featured-meta">
               <span>{{ featuredNews.author }}</span>
               <span>·</span>
               <span>{{ formatDate(featuredNews.publishTime) }}</span>
+              <el-button
+                class="featured-share-btn"
+                type="primary"
+                plain
+                round
+                size="small"
+                @click.stop="openShareDialog(featuredNews)"
+              >
+                <el-icon><Share /></el-icon>
+                {{ shareStore.isNewsShared(featuredNews.id) ? '管理分享' : '只读分享' }}
+              </el-button>
             </div>
           </div>
         </div>
 
         <!-- 文章网格 -->
         <div class="news-grid">
-          <article 
-            v-for="news in filteredNews" 
-            :key="news.id" 
+          <article
+            v-for="news in filteredNews"
+            :key="news.id"
             class="news-card"
             @click="router.push(`/news/${news.id}`)"
           >
             <div class="news-image">
               <img :src="news.coverImage" :alt="news.title" />
+              <el-button
+                class="card-share-btn"
+                circle
+                size="small"
+                :title="shareStore.isNewsShared(news.id) ? '管理只读分享' : '只读分享'"
+                @click.stop="openShareDialog(news)"
+              >
+                <el-icon><Share /></el-icon>
+              </el-button>
             </div>
             <div class="news-content">
               <div class="news-meta">
@@ -75,10 +98,13 @@
               <h3>{{ news.title }}</h3>
               <p>{{ news.summary }}</p>
               <div class="news-footer">
-                <span class="news-author">{{ news.author }}</span>
-                <span class="news-views">
-                  <el-icon><View /></el-icon> {{ news.viewCount }}
-                </span>
+                <div class="news-footer__left">
+                  <span class="news-author">{{ news.author }}</span>
+                  <span class="news-views">
+                    <el-icon><View /></el-icon> {{ news.viewCount }}
+                  </span>
+                </div>
+                <ShareStatusPill :news-id="news.id" @share="openShareDialog(news)" />
               </div>
             </div>
           </article>
@@ -97,6 +123,9 @@
         </div>
       </div>
     </section>
+
+    <!-- 只读分享设置弹窗 -->
+    <ShareDialog v-model="shareDialogVisible" :news="shareTarget" />
   </div>
 </template>
 
@@ -106,10 +135,24 @@ import { useRouter } from 'vue-router'
 import { Search } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import type { NewsItem } from '@/types'
+import { newsData } from '@/api/newsData'
+import { useShareStore } from '@/stores/share'
+import ShareDialog from '@/components/common/ShareDialog.vue'
+import ShareStatusPill from '@/components/common/ShareStatusPill.vue'
 
 const router = useRouter()
+const shareStore = useShareStore()
 const activeCategory = ref('')
 const searchKeyword = ref('')
+
+// 只读分享弹窗状态
+const shareDialogVisible = ref(false)
+const shareTarget = ref<NewsItem | null>(null)
+
+const openShareDialog = (news: NewsItem) => {
+  shareTarget.value = news
+  shareDialogVisible.value = true
+}
 
 const handleNotImplemented = () => {
   ElMessage.info('功能开发中，敬请期待')
@@ -123,86 +166,7 @@ const categories = [
   { label: '技术分享', value: '技术分享' }
 ]
 
-const newsList = ref<NewsItem[]>([
-  {
-    id: 1,
-    title: '公司荣获2024年度最佳创新企业奖',
-    summary: '在刚刚结束的行业峰会上，我公司凭借卓越的创新能力和优质的产品服务，荣获年度最佳创新企业奖，这是对我们团队的最好肯定。',
-    content: '',
-    coverImage: 'https://images.unsplash.com/photo-1551434678-e076c223a692?w=800&h=500&fit=crop',
-    category: '公司新闻',
-    author: '市场部',
-    viewCount: 1256,
-    publishTime: '2024-03-15',
-    createTime: '2024-03-15',
-    updateTime: '2024-03-15'
-  },
-  {
-    id: 2,
-    title: '新一代数字化平台正式发布',
-    summary: '我公司全新研发的数字化平台正式上线，为企业提供更强大的数字化能力，助力企业实现智能化转型。',
-    content: '',
-    coverImage: 'https://images.unsplash.com/photo-1519389950473-47ba0277781c?w=600&h=400&fit=crop',
-    category: '产品动态',
-    author: '产品团队',
-    viewCount: 892,
-    publishTime: '2024-03-10',
-    createTime: '2024-03-10',
-    updateTime: '2024-03-10'
-  },
-  {
-    id: 3,
-    title: '2024数字化转型趋势报告',
-    summary: '我公司研究院发布最新行业报告，深入解读数字化转型的未来趋势，为企业决策提供参考。',
-    content: '',
-    coverImage: 'https://images.unsplash.com/photo-1504868584819-f8e8b4b6d7e3?w=600&h=400&fit=crop',
-    category: '行业资讯',
-    author: '研究院',
-    viewCount: 654,
-    publishTime: '2024-03-05',
-    createTime: '2024-03-05',
-    updateTime: '2024-03-05'
-  },
-  {
-    id: 4,
-    title: 'Vue 3 组合式 API 最佳实践',
-    summary: '本文将分享在实际项目中使用 Vue 3 组合式 API 的最佳实践，包括状态管理、性能优化等方面的经验。',
-    content: '',
-    coverImage: 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=600&h=400&fit=crop',
-    category: '技术分享',
-    author: '技术团队',
-    viewCount: 2341,
-    publishTime: '2024-03-01',
-    createTime: '2024-03-01',
-    updateTime: '2024-03-01'
-  },
-  {
-    id: 5,
-    title: '公司年度战略规划会议召开',
-    summary: '公司召开了年度战略规划会议，明确了未来一年的发展目标和重点工作方向，全力推进业务增长。',
-    content: '',
-    coverImage: 'https://images.unsplash.com/photo-1542744173-8e7e53415bb0?w=600&h=400&fit=crop',
-    category: '公司新闻',
-    author: '行政部',
-    viewCount: 567,
-    publishTime: '2024-02-28',
-    createTime: '2024-02-28',
-    updateTime: '2024-02-28'
-  },
-  {
-    id: 6,
-    title: '微服务架构设计与实践',
-    summary: '深入探讨微服务架构的设计原则、技术选型和实践经验，帮助团队构建高可用、可扩展的系统。',
-    content: '',
-    coverImage: 'https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=600&h=400&fit=crop',
-    category: '技术分享',
-    author: '架构组',
-    viewCount: 1823,
-    publishTime: '2024-02-25',
-    createTime: '2024-02-25',
-    updateTime: '2024-02-25'
-  }
-])
+const newsList = ref<NewsItem[]>(newsData)
 
 const featuredNews = computed(() => newsList.value[0])
 
@@ -367,45 +331,54 @@ const formatDate = (dateStr: string) => {
     flex-direction: column;
     justify-content: center;
     padding: $spacing-md;
-    
+
+    .featured-tags {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: $spacing-sm;
+      margin-bottom: $spacing-sm;
+    }
+
     .featured-badge {
       display: inline-block;
-      width: fit-content;
       padding: 4px $spacing-sm;
       background: $gradient-primary;
       color: white;
       font-size: $font-size-xs;
       font-weight: 600;
       border-radius: $border-radius-sm;
-      margin-bottom: $spacing-sm;
     }
-    
+
     .featured-category {
       font-size: $font-size-sm;
       color: $primary-color;
       font-weight: 600;
-      margin-bottom: $spacing-sm;
     }
-    
+
     h2 {
       font-size: $font-size-3xl;
       line-height: 1.3;
       margin-bottom: $spacing-md;
     }
-    
+
     p {
       font-size: $font-size-md;
       color: $text-color-secondary;
       line-height: $line-height-loose;
       margin-bottom: $spacing-lg;
     }
-    
+
     .featured-meta {
       display: flex;
       align-items: center;
       gap: $spacing-sm;
       font-size: $font-size-sm;
       color: $text-color-secondary;
+
+      .featured-share-btn {
+        margin-left: $spacing-sm;
+      }
     }
   }
 }
@@ -439,15 +412,33 @@ const formatDate = (dateStr: string) => {
   }
   
   .news-image {
+    position: relative;
     height: 200px;
     overflow: hidden;
-    
+
     img {
       width: 100%;
       height: 100%;
       object-fit: cover;
       transition: transform $transition-slow;
     }
+
+    .card-share-btn {
+      position: absolute;
+      top: $spacing-sm;
+      right: $spacing-sm;
+      opacity: 0;
+      transform: translateY(-4px);
+      transition: all $transition-fast;
+      background: rgba(255, 255, 255, 0.92);
+      border-color: transparent;
+      color: $primary-color;
+    }
+  }
+
+  &:hover .card-share-btn {
+    opacity: 1;
+    transform: translateY(0);
   }
   
   .news-content {
@@ -500,11 +491,18 @@ const formatDate = (dateStr: string) => {
       display: flex;
       align-items: center;
       justify-content: space-between;
+      gap: $spacing-sm;
       padding-top: $spacing-md;
       border-top: 1px solid $border-color-light;
       font-size: $font-size-sm;
       color: $text-color-secondary;
-      
+
+      .news-footer__left {
+        display: flex;
+        align-items: center;
+        gap: $spacing-md;
+      }
+
       .news-views {
         display: flex;
         align-items: center;
