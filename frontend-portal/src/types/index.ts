@@ -32,6 +32,32 @@ export interface NewsItem {
   updateTime: string
 }
 
+// ==================== 新闻只读分享 ====================
+export type ShareScope = 'team' | 'anyone'
+
+export interface NewsShare {
+  /** 分享链接令牌 */
+  token: string
+  newsId: number
+  /** 标题快照，用于状态页展示 */
+  newsTitle: string
+  /** 访问范围：team 仅本团队 / anyone 任何人可见 */
+  scope: ShareScope
+  /** scope 为 team 时的团队身份标识 */
+  teamId?: string
+  createdAt: number
+  expiresAt: number
+  /** 是否已取消分享 */
+  revoked: boolean
+}
+
+export type ShareStatus = 'valid' | 'expired' | 'revoked' | 'forbidden' | 'notfound'
+
+export interface ShareResolveResult {
+  status: ShareStatus
+  share?: NewsShare
+}
+
 // ==================== 产品相关 ====================
 export interface ProductItem {
   id: number

@@ -26,6 +26,12 @@ const routes: RouteRecordRaw[] = [
     meta: { title: '新闻详情' }
   },
   {
+    path: '/share/:token',
+    name: 'NewsShare',
+    component: () => import('@/views/news/share.vue'),
+    meta: { title: '只读分享' }
+  },
+  {
     path: '/products',
     name: 'Products',
     component: () => import('@/views/products/index.vue'),

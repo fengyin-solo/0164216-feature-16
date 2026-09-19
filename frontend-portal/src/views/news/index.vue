@@ -42,6 +42,13 @@
         <div v-if="!activeCategory && !searchKeyword && featuredNews" class="featured-article" @click="router.push(`/news/${featuredNews.id}`)">
           <div class="featured-image">
             <img :src="featuredNews.coverImage" :alt="featuredNews.title" />
+            <div
+              v-if="displayShareOf(featuredNews.id)"
+              class="share-badge"
+              :class="{ expired: isShareExpired(featuredNews.id) }"
+            >
+              <el-icon><Share /></el-icon> {{ shareBadgeText(featuredNews.id) }}
+            </div>
           </div>
           <div class="featured-content">
             <span class="featured-badge">精选</span>
@@ -66,6 +73,13 @@
           >
             <div class="news-image">
               <img :src="news.coverImage" :alt="news.title" />
+              <div
+                v-if="displayShareOf(news.id)"
+                class="share-badge"
+                :class="{ expired: isShareExpired(news.id) }"
+              >
+                <el-icon><Share /></el-icon> {{ shareBadgeText(news.id) }}
+              </div>
             </div>
             <div class="news-content">
               <div class="news-meta">
@@ -106,8 +120,11 @@ import { useRouter } from 'vue-router'
 import { Search } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import type { NewsItem } from '@/types'
+import { mockNewsList } from '@/mock/news'
+import { useShareStore } from '@/stores/share'
 
 const router = useRouter()
+const shareStore = useShareStore()
 const activeCategory = ref('')
 const searchKeyword = ref('')
 
@@ -123,86 +140,22 @@ const categories = [
   { label: '技术分享', value: '技术分享' }
 ]
 
-const newsList = ref<NewsItem[]>([
-  {
-    id: 1,
-    title: '公司荣获2024年度最佳创新企业奖',
-    summary: '在刚刚结束的行业峰会上，我公司凭借卓越的创新能力和优质的产品服务，荣获年度最佳创新企业奖，这是对我们团队的最好肯定。',
-    content: '',
-    coverImage: 'https://images.unsplash.com/photo-1551434678-e076c223a692?w=800&h=500&fit=crop',
-    category: '公司新闻',
-    author: '市场部',
-    viewCount: 1256,
-    publishTime: '2024-03-15',
-    createTime: '2024-03-15',
-    updateTime: '2024-03-15'
-  },
-  {
-    id: 2,
-    title: '新一代数字化平台正式发布',
-    summary: '我公司全新研发的数字化平台正式上线，为企业提供更强大的数字化能力，助力企业实现智能化转型。',
-    content: '',
-    coverImage: 'https://images.unsplash.com/photo-1519389950473-47ba0277781c?w=600&h=400&fit=crop',
-    category: '产品动态',
-    author: '产品团队',
-    viewCount: 892,
-    publishTime: '2024-03-10',
-    createTime: '2024-03-10',
-    updateTime: '2024-03-10'
-  },
-  {
-    id: 3,
-    title: '2024数字化转型趋势报告',
-    summary: '我公司研究院发布最新行业报告，深入解读数字化转型的未来趋势，为企业决策提供参考。',
-    content: '',
-    coverImage: 'https://images.unsplash.com/photo-1504868584819-f8e8b4b6d7e3?w=600&h=400&fit=crop',
-    category: '行业资讯',
-    author: '研究院',
-    viewCount: 654,
-    publishTime: '2024-03-05',
-    createTime: '2024-03-05',
-    updateTime: '2024-03-05'
-  },
-  {
-    id: 4,
-    title: 'Vue 3 组合式 API 最佳实践',
-    summary: '本文将分享在实际项目中使用 Vue 3 组合式 API 的最佳实践，包括状态管理、性能优化等方面的经验。',
-    content: '',
-    coverImage: 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=600&h=400&fit=crop',
-    category: '技术分享',
-    author: '技术团队',
-    viewCount: 2341,
-    publishTime: '2024-03-01',
-    createTime: '2024-03-01',
-    updateTime: '2024-03-01'
-  },
-  {
-    id: 5,
-    title: '公司年度战略规划会议召开',
-    summary: '公司召开了年度战略规划会议，明确了未来一年的发展目标和重点工作方向，全力推进业务增长。',
-    content: '',
-    coverImage: 'https://images.unsplash.com/photo-1542744173-8e7e53415bb0?w=600&h=400&fit=crop',
-    category: '公司新闻',
-    author: '行政部',
-    viewCount: 567,
-    publishTime: '2024-02-28',
-    createTime: '2024-02-28',
-    updateTime: '2024-02-28'
-  },
-  {
-    id: 6,
-    title: '微服务架构设计与实践',
-    summary: '深入探讨微服务架构的设计原则、技术选型和实践经验，帮助团队构建高可用、可扩展的系统。',
-    content: '',
-    coverImage: 'https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=600&h=400&fit=crop',
-    category: '技术分享',
-    author: '架构组',
-    viewCount: 1823,
-    publishTime: '2024-02-25',
-    createTime: '2024-02-25',
-    updateTime: '2024-02-25'
-  }
-])
+const newsList = ref<NewsItem[]>(mockNewsList)
+
+// ==================== 分享状态 ====================
+const displayShareOf = (newsId: number) => shareStore.getDisplayShare(newsId)
+
+const isShareExpired = (newsId: number) => {
+  const share = displayShareOf(newsId)
+  return !!share && share.expiresAt <= shareStore.now
+}
+
+const shareBadgeText = (newsId: number) => {
+  const share = displayShareOf(newsId)
+  if (!share) return ''
+  if (share.expiresAt <= shareStore.now) return '分享已过期'
+  return `分享中 · ${shareStore.remainingText(share)}`
+}
 
 const featuredNews = computed(() => newsList.value[0])
 
@@ -351,6 +304,7 @@ const formatDate = (dateStr: string) => {
   }
   
   .featured-image {
+    position: relative;
     border-radius: $border-radius-lg;
     overflow: hidden;
     
@@ -439,6 +393,7 @@ const formatDate = (dateStr: string) => {
   }
   
   .news-image {
+    position: relative;
     height: 200px;
     overflow: hidden;
     
@@ -519,16 +474,37 @@ const formatDate = (dateStr: string) => {
   text-align: center;
   padding: $spacing-4xl;
   color: $text-color-secondary;
-  
+
   .el-icon {
     margin-bottom: $spacing-md;
     opacity: 0.3;
   }
-  
+
   h3 {
     font-size: $font-size-xl;
     color: $text-color-primary;
     margin-bottom: $spacing-sm;
+  }
+}
+
+// 分享状态徽章
+.share-badge {
+  position: absolute;
+  top: $spacing-md;
+  right: $spacing-md;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px $spacing-md;
+  background: rgba($success-color, 0.95);
+  color: white;
+  font-size: $font-size-xs;
+  font-weight: 600;
+  border-radius: $border-radius-full;
+  box-shadow: $shadow-md;
+
+  &.expired {
+    background: rgba($text-color-secondary, 0.9);
   }
 }
 

@@ -1,168 +1,131 @@
 <template>
   <div class="news-detail-page">
-    <!-- 文章头部 -->
-    <header class="article-hero">
-      <div class="hero-content">
-        <span class="article-category">{{ newsDetail.category }}</span>
-        <h1>{{ newsDetail.title }}</h1>
-        <div class="article-meta">
-          <span><el-icon><User /></el-icon> {{ newsDetail.author }}</span>
-          <span><el-icon><Calendar /></el-icon> {{ formatDate(newsDetail.publishTime) }}</span>
-          <span><el-icon><View /></el-icon> {{ newsDetail.viewCount }} 阅读</span>
+    <template v-if="newsDetail">
+      <!-- 文章头部 -->
+      <header class="article-hero">
+        <div class="hero-content">
+          <span class="article-category">{{ newsDetail.category }}</span>
+          <h1>{{ newsDetail.title }}</h1>
+          <div class="article-meta">
+            <span><el-icon><User /></el-icon> {{ newsDetail.author }}</span>
+            <span><el-icon><Calendar /></el-icon> {{ formatDate(newsDetail.publishTime) }}</span>
+            <span><el-icon><View /></el-icon> {{ newsDetail.viewCount }} 阅读</span>
+          </div>
         </div>
-      </div>
-    </header>
+      </header>
 
-    <div class="detail-container">
-      <!-- 返回按钮 -->
-      <div class="back-nav">
-        <el-button text @click="router.back()">
-          <el-icon><ArrowLeft /></el-icon> 返回列表
-        </el-button>
-      </div>
+      <div class="detail-container">
+        <!-- 返回与分享 -->
+        <div class="back-nav">
+          <el-button text @click="router.back()">
+            <el-icon><ArrowLeft /></el-icon> 返回列表
+          </el-button>
+          <el-button type="primary" plain round @click="shareDialogVisible = true">
+            <el-icon><Share /></el-icon> 只读分享
+          </el-button>
+        </div>
 
-      <div class="content-wrapper">
-        <!-- 文章主体 -->
-        <article class="article-main">
-          <div class="article-cover">
-            <img :src="newsDetail.coverImage" :alt="newsDetail.title" />
-          </div>
-
-          <div class="article-body">
-            <p class="lead">{{ newsDetail.summary }}</p>
-            <p>
-              这是一篇关于{{ newsDetail.category }}的详细报道。在当今快速发展的时代，
-              我们需要不断学习和适应新的变化。本文将从多个角度深入分析相关话题，
-              为读者提供有价值的参考信息。
-            </p>
-            <h2>背景介绍</h2>
-            <p>
-              随着技术的不断进步，行业正在经历前所未有的变革。企业需要积极拥抱变化，
-              才能在激烈的市场竞争中保持领先地位。我们公司一直致力于技术创新，
-              为客户提供最优质的产品和服务。
-            </p>
-            <h2>核心观点</h2>
-            <p>
-              本次事件的核心在于创新与实践的结合。只有将理论与实际相结合，
-              才能真正实现价值创造。我们相信，通过持续的努力和投入，
-              一定能够取得更大的成就。
-            </p>
-            <h2>未来展望</h2>
-            <p>
-              展望未来，我们充满信心。在全体员工的共同努力下，
-              公司将继续保持高速发展，为客户创造更多价值，
-              为社会做出更大贡献。
-            </p>
-          </div>
-
-          <footer class="article-footer">
-            <div class="article-tags">
-              <span class="tags-label">标签：</span>
-              <el-tag v-for="tag in ['行业动态', '技术创新', '企业发展']" :key="tag" size="small" effect="plain">
-                {{ tag }}
-              </el-tag>
+        <div class="content-wrapper">
+          <!-- 文章主体 -->
+          <article class="article-main">
+            <div class="article-cover">
+              <img :src="newsDetail.coverImage" :alt="newsDetail.title" />
             </div>
-            <div class="article-share">
-              <span>分享：</span>
-              <a @click="handleNotImplemented"><el-icon :size="18"><Share /></el-icon></a>
-              <a @click="handleNotImplemented"><el-icon :size="18"><ChatDotRound /></el-icon></a>
-            </div>
-          </footer>
-        </article>
 
-        <!-- 侧边栏 -->
-        <aside class="article-sidebar">
-          <div class="sidebar-card">
-            <h3>相关推荐</h3>
-            <div class="related-list">
-              <div 
-                v-for="item in relatedNews" 
-                :key="item.id" 
-                class="related-item"
-                @click="router.push(`/news/${item.id}`)"
-              >
-                <img :src="item.coverImage" :alt="item.title" />
-                <div class="related-info">
-                  <h4>{{ item.title }}</h4>
-                  <span>{{ formatDate(item.publishTime) }}</span>
+            <NewsArticleBody :news="newsDetail" />
+
+            <footer class="article-footer">
+              <div class="article-tags">
+                <span class="tags-label">标签：</span>
+                <el-tag v-for="tag in ['行业动态', '技术创新', '企业发展']" :key="tag" size="small" effect="plain">
+                  {{ tag }}
+                </el-tag>
+              </div>
+              <div class="article-share">
+                <el-tag
+                  v-if="activeShare"
+                  size="small"
+                  type="success"
+                  effect="light"
+                  class="share-state-tag"
+                  @click="shareDialogVisible = true"
+                >
+                  分享中 · {{ shareStore.remainingText(activeShare) }}
+                </el-tag>
+                <span>分享：</span>
+                <a title="只读分享" @click="shareDialogVisible = true"><el-icon :size="18"><Share /></el-icon></a>
+                <a @click="handleNotImplemented"><el-icon :size="18"><ChatDotRound /></el-icon></a>
+              </div>
+            </footer>
+          </article>
+
+          <!-- 侧边栏 -->
+          <aside class="article-sidebar">
+            <div class="sidebar-card">
+              <h3>相关推荐</h3>
+              <div class="related-list">
+                <div
+                  v-for="item in relatedNews"
+                  :key="item.id"
+                  class="related-item"
+                  @click="router.push(`/news/${item.id}`)"
+                >
+                  <img :src="item.coverImage" :alt="item.title" />
+                  <div class="related-info">
+                    <h4>{{ item.title }}</h4>
+                    <span>{{ formatDate(item.publishTime) }}</span>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        </aside>
+          </aside>
+        </div>
       </div>
+
+      <!-- 只读分享对话框 -->
+      <ShareDialog v-model="shareDialogVisible" :news="newsDetail" />
+    </template>
+
+    <!-- 文章不存在 -->
+    <div v-else class="not-found-state">
+      <el-empty description="文章不存在或已被删除">
+        <el-button type="primary" @click="router.push('/news')">返回新闻中心</el-button>
+      </el-empty>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import type { NewsItem } from '@/types'
+import { getNewsById, getRelatedNews } from '@/mock/news'
+import { useShareStore } from '@/stores/share'
+import ShareDialog from '@/components/common/ShareDialog.vue'
+import NewsArticleBody from '@/components/common/NewsArticleBody.vue'
 
 const router = useRouter()
 const route = useRoute()
+const shareStore = useShareStore()
 
 const handleNotImplemented = () => {
   ElMessage.info('功能开发中，敬请期待')
 }
 
-const newsDetail = ref<NewsItem>({
-  id: 1,
-  title: '公司荣获2024年度最佳创新企业奖',
-  summary: '在刚刚结束的行业峰会上，我公司凭借卓越的创新能力和优质的产品服务，荣获年度最佳创新企业奖。这是对我们团队辛勤付出的最好肯定，也是对未来发展的巨大鼓励。',
-  content: '',
-  coverImage: 'https://images.unsplash.com/photo-1551434678-e076c223a692?w=800&h=400&fit=crop',
-  category: '公司新闻',
-  author: '管理员',
-  viewCount: 1256,
-  publishTime: '2024-03-15',
-  createTime: '2024-03-15',
-  updateTime: '2024-03-15'
-})
+const newsDetail = ref<NewsItem | null>(null)
+const relatedNews = ref<NewsItem[]>([])
+const shareDialogVisible = ref(false)
 
-const relatedNews = ref<NewsItem[]>([
-  {
-    id: 2,
-    title: '新产品发布会圆满成功',
-    summary: '',
-    content: '',
-    coverImage: 'https://images.unsplash.com/photo-1519389950473-47ba0277781c?w=200&h=150&fit=crop',
-    category: '产品动态',
-    author: '管理员',
-    viewCount: 892,
-    publishTime: '2024-03-10',
-    createTime: '2024-03-10',
-    updateTime: '2024-03-10'
-  },
-  {
-    id: 3,
-    title: '行业发展趋势分析报告发布',
-    summary: '',
-    content: '',
-    coverImage: 'https://images.unsplash.com/photo-1504868584819-f8e8b4b6d7e3?w=200&h=150&fit=crop',
-    category: '行业资讯',
-    author: '管理员',
-    viewCount: 654,
-    publishTime: '2024-03-05',
-    createTime: '2024-03-05',
-    updateTime: '2024-03-05'
-  },
-  {
-    id: 4,
-    title: 'Vue 3 组合式 API 最佳实践',
-    summary: '',
-    content: '',
-    coverImage: 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=200&h=150&fit=crop',
-    category: '技术分享',
-    author: '技术团队',
-    viewCount: 2341,
-    publishTime: '2024-03-01',
-    createTime: '2024-03-01',
-    updateTime: '2024-03-01'
-  }
-])
+const activeShare = computed(() =>
+  newsDetail.value ? shareStore.getActiveShare(newsDetail.value.id) : undefined
+)
+
+const loadNews = () => {
+  const id = Number(route.params.id)
+  newsDetail.value = getNewsById(id) ?? null
+  relatedNews.value = newsDetail.value ? getRelatedNews(id) : []
+}
 
 const formatDate = (dateStr: string) => {
   return new Date(dateStr).toLocaleDateString('zh-CN', {
@@ -172,9 +135,10 @@ const formatDate = (dateStr: string) => {
   })
 }
 
-onMounted(() => {
-  console.log('News ID:', route.params.id)
-})
+onMounted(loadNews)
+
+// 点击相关推荐切换文章时重新加载
+watch(() => route.params.id, loadNews)
 </script>
 
 <style lang="scss" scoped>
@@ -189,12 +153,12 @@ onMounted(() => {
   background: $bg-color-dark;
   padding: $spacing-3xl $spacing-lg;
   text-align: center;
-  
+
   .hero-content {
     max-width: 800px;
     margin: 0 auto;
   }
-  
+
   .article-category {
     display: inline-block;
     padding: $spacing-xs $spacing-md;
@@ -205,21 +169,21 @@ onMounted(() => {
     border-radius: $border-radius-full;
     margin-bottom: $spacing-md;
   }
-  
+
   h1 {
     font-size: $font-size-3xl;
     color: white;
     line-height: 1.4;
     margin-bottom: $spacing-lg;
   }
-  
+
   .article-meta {
     display: flex;
     justify-content: center;
     gap: $spacing-lg;
     font-size: $font-size-sm;
     color: rgba(255, 255, 255, 0.7);
-    
+
     span {
       display: flex;
       align-items: center;
@@ -236,13 +200,24 @@ onMounted(() => {
 }
 
 .back-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   margin-bottom: $spacing-lg;
-  
+
   .el-button {
     color: $text-color-secondary;
-    
+
     &:hover {
       color: $primary-color;
+    }
+
+    &.el-button--primary {
+      color: $primary-color;
+
+      .el-icon {
+        margin-right: 4px;
+      }
     }
   }
 }
@@ -266,40 +241,11 @@ onMounted(() => {
   width: 100%;
   height: 400px;
   overflow: hidden;
-  
+
   img {
     width: 100%;
     height: 100%;
     object-fit: cover;
-  }
-}
-
-.article-body {
-  padding: $spacing-xl;
-  
-  .lead {
-    font-size: $font-size-lg;
-    color: $text-color-primary;
-    font-weight: 500;
-    line-height: $line-height-loose;
-    margin-bottom: $spacing-xl;
-    padding-bottom: $spacing-lg;
-    border-bottom: 1px solid $border-color-light;
-  }
-  
-  p {
-    font-size: $font-size-md;
-    color: $text-color-regular;
-    line-height: 1.8;
-    margin-bottom: $spacing-lg;
-  }
-  
-  h2 {
-    font-size: $font-size-xl;
-    color: $text-color-primary;
-    margin: $spacing-xl 0 $spacing-md;
-    padding-left: $spacing-md;
-    border-left: 4px solid $primary-color;
   }
 }
 
@@ -310,25 +256,29 @@ onMounted(() => {
   padding: $spacing-lg $spacing-xl;
   background: $bg-color-light;
   border-top: 1px solid $border-color-light;
-  
+
   .article-tags {
     display: flex;
     align-items: center;
     gap: $spacing-sm;
-    
+
     .tags-label {
       font-size: $font-size-sm;
       color: $text-color-secondary;
     }
   }
-  
+
   .article-share {
     display: flex;
     align-items: center;
     gap: $spacing-sm;
     font-size: $font-size-sm;
     color: $text-color-secondary;
-    
+
+    .share-state-tag {
+      cursor: pointer;
+    }
+
     a {
       width: 32px;
       height: 32px;
@@ -340,7 +290,7 @@ onMounted(() => {
       color: $text-color-secondary;
       cursor: pointer;
       transition: all $transition-fast;
-      
+
       &:hover {
         background: $primary-color;
         color: white;
@@ -360,7 +310,7 @@ onMounted(() => {
   border-radius: $border-radius-lg;
   padding: $spacing-lg;
   box-shadow: $shadow-md;
-  
+
   h3 {
     font-size: $font-size-lg;
     margin-bottom: $spacing-lg;
@@ -383,15 +333,15 @@ onMounted(() => {
   border-radius: $border-radius-md;
   cursor: pointer;
   transition: all $transition-fast;
-  
+
   &:hover {
     background: $bg-color-light;
-    
+
     h4 {
       color: $primary-color;
     }
   }
-  
+
   img {
     width: 80px;
     height: 60px;
@@ -399,11 +349,11 @@ onMounted(() => {
     border-radius: $border-radius-sm;
     flex-shrink: 0;
   }
-  
+
   .related-info {
     flex: 1;
     min-width: 0;
-    
+
     h4 {
       font-size: $font-size-sm;
       font-weight: 500;
@@ -414,7 +364,7 @@ onMounted(() => {
       -webkit-box-orient: vertical;
       overflow: hidden;
     }
-    
+
     span {
       font-size: $font-size-xs;
       color: $text-color-secondary;
@@ -422,12 +372,17 @@ onMounted(() => {
   }
 }
 
+// ==================== 文章不存在 ====================
+.not-found-state {
+  padding: $spacing-4xl $spacing-lg;
+}
+
 // ==================== 响应式 ====================
 @media (max-width: $breakpoint-lg) {
   .content-wrapper {
     grid-template-columns: 1fr;
   }
-  
+
   .article-sidebar {
     position: static;
   }
@@ -437,11 +392,11 @@ onMounted(() => {
   .article-hero h1 {
     font-size: $font-size-xxl;
   }
-  
+
   .article-cover {
     height: 250px;
   }
-  
+
   .article-footer {
     flex-direction: column;
     gap: $spacing-md;
